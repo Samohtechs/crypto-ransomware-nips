@@ -4,9 +4,10 @@
     <div class="mb-6 flex items-center justify-between">
       <div>
         <p class="text-slate-400">
-          ML Model Status > Detection model performance and deployment status
+          ML Model Status > Active detection models performance and deployment status
         </p>
       </div>
+
       <button
         @click="loadModelStatus"
         :disabled="loading"
@@ -16,7 +17,7 @@
       </button>
     </div>
 
-    <!-- Loading State (initial only) -->
+    <!-- Loading State -->
     <div v-if="loading && !modelLoaded" class="text-slate-400">
       Loading model status...
     </div>
@@ -29,55 +30,108 @@
       {{ error }}
     </div>
 
+    <!-- Empty State -->
+    <div
+      v-else-if="models.length === 0"
+      class="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-400"
+    >
+      No active models found.
+    </div>
+
     <!-- Data Display -->
     <div v-else>
-      <!-- Performance Metrics Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <p class="text-slate-400 text-sm">Accuracy</p>
-          <h3 class="text-3xl font-bold mt-2 text-green-400">
-            {{ model.performance.accuracy }}%
-          </h3>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <p class="text-slate-400 text-sm">Precision</p>
-          <h3 class="text-3xl font-bold mt-2">
-            {{ model.performance.precision }}%
-          </h3>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <p class="text-slate-400 text-sm">Recall</p>
-          <h3 class="text-3xl font-bold mt-2">
-            {{ model.performance.recall }}%
-          </h3>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <p class="text-slate-400 text-sm">F1 Score</p>
-          <h3 class="text-3xl font-bold mt-2">
-            {{ model.performance.f1_score }}%
-          </h3>
+      <!-- Summary -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <p class="text-slate-400 text-sm">Active Models</p>
+            <h3 class="text-3xl font-bold mt-1 text-green-400">
+              {{ activeModelCount }}
+            </h3>
+          </div>
+
+          <div class="text-slate-400">
+            Current mode:
+            <span class="text-yellow-400 font-medium">
+              {{ predictionMode }}
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- Model Information -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h3 class="text-xl font-bold mb-5">Current Model Information</h3>
+      <!-- Models List -->
+      <div class="space-y-6">
+        <div
+          v-for="model in models"
+          :key="`${model.model_name}-${model.version}`"
+          class="bg-slate-950 border border-slate-800 rounded-2xl p-6"
+        >
+          <!-- Model Title -->
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+            <div>
+              <h3 class="text-xl font-bold">
+                {{ model.model_name }}
+                <span class="text-slate-400 text-sm font-normal">
+                  {{ model.version }}
+                </span>
+              </h3>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <InfoRow label="Model Name" :value="model.model_name" />
-          <InfoRow label="Version" :value="model.version" />
-          <InfoRow label="Dataset" :value="model.dataset" />
+              <p class="text-slate-400 text-sm mt-1">
+                Dataset: {{ model.dataset || "—" }}
+              </p>
+            </div>
 
-          <div class="flex justify-between border-b border-slate-800 pb-3">
-            <span class="text-slate-400">Status / Active</span>
-            <span class="text-green-400">{{ model.status }} / {{ model.active ? 'Active' : 'Inactive' }}</span>
+            <span
+              class="px-4 py-2 rounded-xl text-sm font-medium"
+              :class="model.active ? 'bg-green-500/10 text-green-400 border border-green-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'"
+            >
+              {{ model.active ? "Active" : "Inactive" }}
+            </span>
           </div>
 
-          <InfoRow label="Last Trained" :value="formatTimestamp(model.last_trained)" />
+          <!-- Performance Metrics Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <p class="text-slate-400 text-sm">Accuracy</p>
+              <h3 class="text-3xl font-bold mt-2 text-green-400">
+                {{ formatMetric(model.performance?.accuracy) }}%
+              </h3>
+            </div>
 
-          <div class="flex justify-between border-b border-slate-800 pb-3">
-            <span class="text-slate-400">Prediction Mode</span>
-            <span class="text-yellow-400">{{ model.prediction_mode }}</span>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <p class="text-slate-400 text-sm">Precision</p>
+              <h3 class="text-3xl font-bold mt-2">
+                {{ formatMetric(model.performance?.precision) }}%
+              </h3>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <p class="text-slate-400 text-sm">Recall</p>
+              <h3 class="text-3xl font-bold mt-2">
+                {{ formatMetric(model.performance?.recall) }}%
+              </h3>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <p class="text-slate-400 text-sm">F1 Score</p>
+              <h3 class="text-3xl font-bold mt-2">
+                {{ formatMetric(model.performance?.f1_score) }}%
+              </h3>
+            </div>
+          </div>
+
+          <!-- Model Information -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <h3 class="text-lg font-bold mb-5">Model Information</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <InfoRow label="Model Name" :value="model.model_name" />
+              <InfoRow label="Version" :value="model.version" />
+              <InfoRow label="Dataset" :value="model.dataset" />
+              <InfoRow label="Status" :value="model.status" />
+              <InfoRow label="Last Trained" :value="formatTimestamp(model.last_trained)" />
+              <InfoRow label="Prediction Mode" :value="model.prediction_mode" />
+            </div>
           </div>
         </div>
       </div>
@@ -86,39 +140,44 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, h, defineComponent } from 'vue';
+import { onMounted, onUnmounted, ref, h, defineComponent, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../services/api';
 
 // --- State ---
 const loading = ref(false);
 const error = ref('');
-const modelLoaded = ref(false);   // tracks if we have ever loaded data
+const modelLoaded = ref(false);
+const models = ref([]);
 let refreshInterval = null;
 
 // Router for redirect
 const router = useRouter();
 
-// --- Model data structure with defaults ---
-const model = ref({
-  model_name: '—',
-  version: '—',
-  dataset: '—',
-  performance: {
-    accuracy: 0,
-    precision: 0,
-    recall: 0,
-    f1_score: 0,
-  },
-  last_trained: null,
-  status: 'Unknown',
-  active: false,
-  prediction_mode: 'Unknown',
+// --- Computed ---
+const activeModelCount = computed(() => models.value.length);
+
+const predictionMode = computed(() => {
+  if (!models.value.length) return 'Unknown';
+
+  const mode = models.value[0]?.prediction_mode;
+
+  return mode || 'Unknown';
 });
 
-// --- Helper: Format Timestamp (ISO → readable) ---
+// --- Helper: Format Metric ---
+const formatMetric = (value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return '0.00';
+  }
+
+  return Number(value).toFixed(2);
+};
+
+// --- Helper: Format Timestamp ---
 const formatTimestamp = (isoString) => {
   if (!isoString) return '—';
+
   try {
     return new Intl.DateTimeFormat(undefined, {
       year: 'numeric',
@@ -133,7 +192,7 @@ const formatTimestamp = (isoString) => {
   }
 };
 
-// --- Auth Handling with Message for Login Page ---
+// --- Auth Handling ---
 const clearAuthAndRedirect = (reason) => {
   sessionStorage.setItem('authWarning', reason);
   localStorage.removeItem('access_token');
@@ -146,7 +205,7 @@ const clearAuthAndRedirect = (reason) => {
   }, 1500);
 };
 
-// --- InfoRow Component (for model info display) ---
+// --- InfoRow Component ---
 const InfoRow = defineComponent({
   props: {
     label: String,
@@ -154,12 +213,28 @@ const InfoRow = defineComponent({
   },
   setup(props) {
     return () =>
-      h('div', { class: 'flex justify-between border-b border-slate-800 pb-3' }, [
+      h('div', { class: 'flex justify-between border-b border-slate-800 pb-3 gap-4' }, [
         h('span', { class: 'text-slate-400' }, props.label),
-        h('span', { class: 'text-white' }, props.value ?? '—'),
+        h('span', { class: 'text-white text-right' }, props.value ?? '—'),
       ]);
   },
 });
+
+// --- Normalize Backend Response ---
+const normalizeModelResponse = (data) => {
+  // New response format:
+  // { active_model_count: 2, models: [...] }
+  if (Array.isArray(data.models)) {
+    return data.models;
+  }
+
+  // Backward compatibility for old single-model response
+  if (data.model_name) {
+    return [data];
+  }
+
+  return [];
+};
 
 // --- Fetch Model Status ---
 const loadModelStatus = async () => {
@@ -172,22 +247,22 @@ const loadModelStatus = async () => {
     const response = await api.get('/api/v1/ml_model/info');
     const data = response.data;
 
-    // Validate and assign with safe defaults
-    model.value = {
-      model_name: data.model_name || '—',
-      version: data.version || '—',
-      dataset: data.dataset || '—',
+    models.value = normalizeModelResponse(data).map((model) => ({
+      model_name: model.model_name || '—',
+      version: model.version || '—',
+      dataset: model.dataset || '—',
       performance: {
-        accuracy: data.performance?.accuracy ?? 0,
-        precision: data.performance?.precision ?? 0,
-        recall: data.performance?.recall ?? 0,
-        f1_score: data.performance?.f1_score ?? 0,
+        accuracy: model.performance?.accuracy ?? 0,
+        precision: model.performance?.precision ?? 0,
+        recall: model.performance?.recall ?? 0,
+        f1_score: model.performance?.f1_score ?? 0,
       },
-      last_trained: data.last_trained || null,
-      status: data.status || 'Unknown',
-      active: data.active ?? false,
-      prediction_mode: data.prediction_mode || 'Unknown',
-    };
+      last_trained: model.last_trained || null,
+      status: model.status || 'Unknown',
+      active: model.active ?? false,
+      prediction_mode: model.prediction_mode || 'Unknown',
+    }));
+
     modelLoaded.value = true;
   } catch (err) {
     console.error('Model status error:', err);
@@ -198,6 +273,9 @@ const loadModelStatus = async () => {
       clearAuthAndRedirect('Access forbidden. Your token may be invalid or you lack permissions.');
     } else if (err.code === 'ERR_NETWORK') {
       error.value = 'Cannot connect to backend. Is the server running?';
+    } else if (err.response?.status === 404) {
+      error.value = 'No active model found in the database.';
+      models.value = [];
     } else {
       error.value = 'Failed to fetch model status. Please try again later.';
     }
@@ -206,9 +284,10 @@ const loadModelStatus = async () => {
   }
 };
 
-// --- Polling (every 60 seconds – model changes rarely) ---
+// --- Polling ---
 const startPolling = () => {
   if (refreshInterval) clearInterval(refreshInterval);
+
   refreshInterval = setInterval(() => {
     if (!loading.value && !error.value?.includes('Redirecting')) {
       loadModelStatus();

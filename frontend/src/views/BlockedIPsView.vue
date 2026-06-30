@@ -133,7 +133,8 @@
         <table class="w-full text-sm">
           <thead class="bg-slate-800 text-slate-300">
             <tr>
-              <th scope="col" class="text-left p-4">IP Address</th>
+              <th scope="col" class="text-left p-4">IP Address (Src)</th>
+              <th scope="col" class="text-left p-4">IP Address (Dst)</th>
               <th scope="col" class="text-left p-4">Reason</th>
               <th scope="col" class="text-left p-4">Blocked At</th>
               <th scope="col" class="text-left p-4">Mode</th>
@@ -148,7 +149,11 @@
               class="border-t border-slate-800 hover:bg-slate-800/50"
             >
               <td class="p-4 font-medium text-slate-200">
-                {{ ip.ip_address || ip.ipAddress || '—' }}
+                {{ ip.src_ip_address || ip.srcIpAddress || '—' }}
+              </td>
+
+              <td class="p-4 font-medium text-slate-200">
+                {{ ip.dst_ip_address || ip.dstIpAddress || '—' }}
               </td>
 
               <td class="p-4">

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://nipbackend.udomcyberclub.org',
+  baseURL: 'http://localhost:8000',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

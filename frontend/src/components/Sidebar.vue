@@ -217,12 +217,12 @@ const allLinks = [
     roles: ['admin', 'analyst', 'viewer'],
   },
 
-  {
-    name: 'Attack Simulator',
-    path: '/simulator',
-    icon: IconSimulator,
-    roles: ['admin', 'analyst'],
-  },
+  // {
+  //   name: 'Attack Simulator',
+  //   path: '/simulator',
+  //   icon: IconSimulator,
+  //   roles: ['admin', 'analyst'],
+  // },
 ];
 
 const links = computed(() => {
