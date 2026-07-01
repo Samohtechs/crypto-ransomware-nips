@@ -579,13 +579,6 @@ const updateStatus = async (alertId, status) => {
 
     replaceAlertInLists(updatedAlert);
 
-    // if (status === 'False Positive' && gatewayUnblockResult) {
-    //   successMessage.value = gatewayUnblockResult.success
-    //     ? 'Alert marked as False Positive and IP unblocked successfully.'
-    //     : 'Alert marked as False Positive, but gateway unblock failed.';
-    // } else {
-    //   successMessage.value = `Alert marked as ${status}.`;
-    // }
 
     if (status === 'False Positive' && gatewayUnblockResult) {
       const results = Array.isArray(gatewayUnblockResult)
@@ -596,11 +589,19 @@ const updateStatus = async (alertId, status) => {
       const failed = results.filter((item) => !item.success);
 
       if (successful.length > 0 && failed.length === 0) {
-        successMessage.value = `Alert marked as False Positive and ${successful.length} IP(s) unblocked successfully.`;
+        successMessage.value =
+          `Alert marked as False Positive and ${successful.length} IP(s) unblocked successfully.`;
       } else if (successful.length > 0 && failed.length > 0) {
-        successMessage.value = `Alert marked as False Positive. ${successful.length} IP(s) unblocked, ${failed.length} failed.`;
+        successMessage.value =
+          `Alert marked as False Positive. ${successful.length} IP(s) unblocked, ${failed.length} failed.`;
       } else {
-        successMessage.value = 'Alert marked as False Positive, but gateway unblock failed.';
+        const firstError =
+          failed[0]?.response?.error ||
+          failed[0]?.response?.message ||
+          'Gateway unblock failed.';
+
+        successMessage.value =
+          `Alert marked as False Positive, but gateway unblock failed: ${firstError}`;
       }
     } else {
       successMessage.value = `Alert marked as ${status}.`;
