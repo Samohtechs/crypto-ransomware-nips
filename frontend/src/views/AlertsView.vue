@@ -87,7 +87,8 @@
               </td>
 
               <td class="p-4">
-                {{ alert.destinationIp || alert.destination_ip || '—' }}
+                <!-- {{ alert.destinationIp || alert.destination_ip || '—' }} -->
+                {{ alert.destination_ip_display || alert.destinationIp || alert.destination_ip || '—' }}
               </td>
 
               <td class="p-4">
@@ -108,19 +109,20 @@
 
               <td class="p-4">
                 <div class="flex flex-wrap gap-2">
-                  <button @click="updateStatus(alert.id, 'Reviewed')" :disabled="updatingAlertId === alert.id"
+                  
+                  <!-- <button @click="openStatusPopup(alert, 'Reviewed')" :disabled="updatingAlertId === alert.id"
                     class="px-3 py-2 rounded-lg text-xs bg-blue-600 hover:bg-blue-700 transition disabled:opacity-50">
                     Review
                   </button>
 
-                  <button @click="updateStatus(alert.id, 'Resolved')" :disabled="updatingAlertId === alert.id"
+                  <button @click="openStatusPopup(alert, 'Resolved')" :disabled="updatingAlertId === alert.id"
                     class="px-3 py-2 rounded-lg text-xs bg-green-600 hover:bg-green-700 transition disabled:opacity-50">
                     Resolve
-                  </button>
+                  </button> -->
 
-                  <button @click="updateStatus(alert.id, 'False Positive')" :disabled="updatingAlertId === alert.id"
+                  <button @click="openStatusPopup(alert, 'False Positive')" :disabled="updatingAlertId === alert.id"
                     class="px-3 py-2 rounded-lg text-xs bg-slate-700 hover:bg-slate-600 transition disabled:opacity-50">
-                    False +
+                    Mark as False +
                   </button>
                 </div>
               </td>
@@ -161,6 +163,67 @@
       </div>
     </div>
 
+    <div v-if="showStatusPopup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+      <div class="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-950 p-6 shadow-2xl">
+        <h3 class="text-xl font-bold text-white mb-2">
+          Confirm Alert Action
+        </h3>
+
+        <p class="text-sm text-slate-400 mb-5">
+          Are you sure you want to mark this alert as
+          <span class="font-semibold text-white">{{ pendingStatus }}</span>?
+        </p>
+
+        <div class="mb-5 rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm">
+          <div class="mb-2 flex justify-between gap-4">
+            <span class="text-slate-400">Source IP</span>
+            <span class="text-white">
+              {{ selectedAlert?.sourceIp || selectedAlert?.source_ip || '—' }}
+            </span>
+          </div>
+
+          <div class="mb-2 flex justify-between gap-4">
+            <span class="text-slate-400">Destination IP</span>
+            <span class="text-white">
+              <!-- {{ selectedAlert?.destinationIp || selectedAlert?.destination_ip || '—' }} -->
+              {{ selectedAlert?.destination_ip_display || selectedAlert?.destinationIp || selectedAlert?.destination_ip || '—' }}
+            </span>
+          </div>
+
+          <div class="mb-2 flex justify-between gap-4">
+            <span class="text-slate-400">Severity</span>
+            <span class="text-white">
+              {{ selectedAlert?.severity || '—' }}
+            </span>
+          </div>
+
+          <div class="flex justify-between gap-4">
+            <span class="text-slate-400">Current Status</span>
+            <span class="text-white">
+              {{ selectedAlert?.status || 'New' }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="pendingStatus === 'False Positive'"
+          class="mb-5 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-300">
+          This may trigger gateway unblock logic if the IP was previously blocked.
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <button @click="closeStatusPopup" :disabled="updatingAlertId"
+            class="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50">
+            Cancel
+          </button>
+
+          <button @click="confirmStatusUpdate" :disabled="updatingAlertId"
+            class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">
+            {{ updatingAlertId ? 'Processing...' : 'Confirm' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="successMessage" class="mt-4 bg-green-500/10 border border-green-500/30 text-green-400 p-4 rounded-xl">
       {{ successMessage }}
     </div>
@@ -187,6 +250,10 @@ const statusFilter = ref('All');
 
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
+
+const showStatusPopup = ref(false);
+const selectedAlert = ref(null);
+const pendingStatus = ref('');
 
 const pagination = ref({
   page: 1,
@@ -470,6 +537,29 @@ const replaceAlertInLists = (updatedAlert) => {
   );
 };
 
+
+const openStatusPopup = (alert, status) => {
+  selectedAlert.value = alert;
+  pendingStatus.value = status;
+  showStatusPopup.value = true;
+};
+
+const closeStatusPopup = () => {
+  if (updatingAlertId.value) return;
+
+  showStatusPopup.value = false;
+  selectedAlert.value = null;
+  pendingStatus.value = '';
+};
+
+const confirmStatusUpdate = async () => {
+  if (!selectedAlert.value || !pendingStatus.value) return;
+
+  await updateStatus(selectedAlert.value.id, pendingStatus.value);
+  closeStatusPopup();
+};
+
+
 const updateStatus = async (alertId, status) => {
   if (updatingAlertId.value === alertId) return;
 
@@ -484,9 +574,38 @@ const updateStatus = async (alertId, status) => {
       status,
     });
 
-    replaceAlertInLists(response.data);
+    const updatedAlert = response.data?.alert || response.data;
+    const gatewayUnblockResult = response.data?.gateway_unblock_result || null;
 
-    successMessage.value = `Alert marked as ${status}.`;
+    replaceAlertInLists(updatedAlert);
+
+    // if (status === 'False Positive' && gatewayUnblockResult) {
+    //   successMessage.value = gatewayUnblockResult.success
+    //     ? 'Alert marked as False Positive and IP unblocked successfully.'
+    //     : 'Alert marked as False Positive, but gateway unblock failed.';
+    // } else {
+    //   successMessage.value = `Alert marked as ${status}.`;
+    // }
+
+    if (status === 'False Positive' && gatewayUnblockResult) {
+      const results = Array.isArray(gatewayUnblockResult)
+        ? gatewayUnblockResult
+        : [gatewayUnblockResult];
+
+      const successful = results.filter((item) => item.success);
+      const failed = results.filter((item) => !item.success);
+
+      if (successful.length > 0 && failed.length === 0) {
+        successMessage.value = `Alert marked as False Positive and ${successful.length} IP(s) unblocked successfully.`;
+      } else if (successful.length > 0 && failed.length > 0) {
+        successMessage.value = `Alert marked as False Positive. ${successful.length} IP(s) unblocked, ${failed.length} failed.`;
+      } else {
+        successMessage.value = 'Alert marked as False Positive, but gateway unblock failed.';
+      }
+    } else {
+      successMessage.value = `Alert marked as ${status}.`;
+    }
+
     successTimeout = setTimeout(() => {
       successMessage.value = '';
     }, 3000);

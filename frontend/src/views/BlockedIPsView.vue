@@ -16,12 +16,12 @@
           {{ loading ? "Refreshing..." : "Refresh" }}
         </button>
 
-        <button
+        <!-- <button
           @click="showForm = !showForm"
           class="bg-blue-600 hover:bg-blue-700 transition px-5 py-3 rounded-xl font-medium"
         >
           Add Manual Block
-        </button>
+        </button> -->
       </div>
     </div>
 
